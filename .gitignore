@@ -1,0 +1,6 @@
+# Local artefacts produced by running the tooling.
+__pycache__/
+*.py[cod]
+reports/
+v4.1-*.json
+nccl-switchless-release.tar.gz

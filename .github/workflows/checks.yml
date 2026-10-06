@@ -1,0 +1,67 @@
+name: checks
+
+# Offline only: no GPU, no nodes, no model. This validates the parts of the
+# repository that can be checked anywhere — the static validators, the benchmark
+# tooling, the shell syntax and the compose file. The real acceptance gates
+# (transport proof, near-1M) require hardware and are documented in the README.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python syntax
+        run: python -m compileall -q scripts benchmarks tests
+
+      - name: Validator tests
+        run: python -m unittest tests.test_validators -v
+
+      - name: Benchmark tooling tests
+        run: python -m unittest discover -s benchmarks/scripts -p 'test_*.py' -v
+
+      - name: Topology example is valid
+        run: python scripts/validate-topology.py config/topology.env
+
+      - name: Shell syntax
+        run: |
+          status=0
+          while IFS= read -r script; do
+            bash -n "$script" || status=1
+          done < <(find . -name '*.sh' -not -path './.git/*')
+          exit "$status"
+
+      - name: Compose file parses and references the expected variables
+        run: |
+          python - <<'PY'
+          import yaml
+          with open("compose/compose.yaml", encoding="utf-8") as handle:
+              document = yaml.safe_load(handle)
+          service = document["services"]["vllm"]
+          assert service["pull_policy"] == "never"
+          assert service["network_mode"] == "host"
+          assert "cgroup_parent" in service
+          assert len(service["volumes"]) >= 10
+          print("compose OK")
+          PY
+
+      - name: No obvious private material
+        run: |
+          status=0
+          for pattern in 'git\.home' 'dgx-[0-9]' '192\.168\.161' 'nas-dts' '/volume1/' \
+                         'forgejo' 'BEGIN .*PRIVATE KEY' 'gh[pous]_[A-Za-z0-9]' \
+                         'AI-Compute' 'AI-DMZ' 'litellm' 'open-webui' 'vaultwarden'; do
+            if grep -rInE "$pattern" --exclude-dir=.git --exclude=checks.yml .; then
+              echo "::error::private material pattern '$pattern' found"
+              status=1
+            fi
+          done
+          exit "$status"

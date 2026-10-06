@@ -1,0 +1,78 @@
+deepseek-v4.1-gx10-switchless
+Copyright 2026 the repository authors
+
+This product includes software and knowledge developed by third parties.
+The following attributions are required by the respective licences and by
+normal engineering courtesy. See docs/provenance.md for the exact pinned
+revisions and the role each project plays in the runtime.
+
+--------------------------------------------------------------------------------
+Switchless / ring-only NCCL 2.30.7
+--------------------------------------------------------------------------------
+alexellis/switchless-nccl  (Apache License 2.0)
+  https://github.com/alexellis/switchless-nccl
+  Release v0.0.1 (480389e72390f93801ae6f703dd489fe5fd00bea) provides the
+  prebuilt libnccl.so.2.30.7 that makes a four-node switchless ConnectX ring
+  work. This repository does not redistribute that archive: it downloads it
+  from the upstream release URL and verifies its SHA-256.
+
+NVIDIA/nccl  (BSD 3-Clause License)
+  https://github.com/NVIDIA/nccl
+  The patched parent tree of the above build. The patches kept in
+  docker/patches/switchless/ are the auditable description of the ring-only
+  behaviour this runtime depends on.
+
+--------------------------------------------------------------------------------
+DGX Spark / GB10 four-ring reference work
+--------------------------------------------------------------------------------
+yunwei37/dgx-spark-4-ring-no-switch  (MIT License)
+  Copyright (c) 2026 Yunwei Zhang
+  https://github.com/yunwei37/dgx-spark-4-ring-no-switch
+  The public, digest-pinned ARM64 runtime recipe and image this repository
+  builds from. The four-node switchless ring topology, the launch pattern and
+  the serving-profile structure follow this work.
+
+tonyd2wild/DeepSeek-V4.1-Flash-vLLM-DGX-Spark  (MIT License)
+  Copyright (c) 2026 Tech2Wild
+  https://github.com/tonyd2wild/DeepSeek-V4.1-Flash-vLLM-DGX-Spark
+  The disk-backed Engram implementation and the GB10/SM12x sparse-MLA geometry
+  patches. This repository does not redistribute those files: it fetches them
+  from the pinned upstream revision and verifies every SHA-256.
+
+MiaAI-Lab/DeepSeek-v4.1-Flash-DGX-Sparks  (reference only)
+  https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-DGX-Sparks
+  The finding that NCCL Tree/PAT setup can attempt non-neighbour links even
+  under NCCL_ALGO=Ring, which is why a ring-only NCCL build is required.
+
+--------------------------------------------------------------------------------
+Inference stack
+--------------------------------------------------------------------------------
+vllm-project/vllm  (Apache License 2.0)
+  https://github.com/vllm-project/vllm
+
+flashinfer-ai/flashinfer  (Apache License 2.0)
+  https://github.com/flashinfer-ai/flashinfer
+  Sparse-MLA SM12x kernels for the GB10 target.
+
+Anemll/dspark-vllm-gx10  (MIT License)
+  Copyright (c) 2026 Anemll project contributors
+  https://github.com/Anemll/dspark-vllm-gx10
+  DSpark speculative decoding for this model family.
+
+NVIDIA CUDA container images and the NVIDIA container stack
+  https://gitlab.com/nvidia/container-images/cuda
+  Used unmodified as build and runtime base layers.
+
+--------------------------------------------------------------------------------
+Model and external measurement references
+--------------------------------------------------------------------------------
+deepseek-ai/DeepSeek-V4.1-Flash  (model weights, not redistributed here)
+  https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash
+
+"Serving DeepSeek-V4.1-Flash on 4x DGX Spark" (aidendle94), 2026-09
+  Independent four-GB10 reference, used only as an external comparison band for
+  our own measurements. Not redistributed.
+
+This repository redistributes no model weights, no container images and no
+third-party binaries. Every external artifact is referenced by immutable
+revision and verified by checksum at fetch time.
