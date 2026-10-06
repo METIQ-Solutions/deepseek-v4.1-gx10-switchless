@@ -39,17 +39,34 @@ jobs:
           done < <(find . -name '*.sh' -not -path './.git/*')
           exit "$status"
 
-      - name: Compose file parses and references the expected variables
+      - name: Compose file structure
         run: |
+          # No YAML library is required: the checks below are structural and are
+          # what the lifecycle scripts actually depend on. `docker compose config`
+          # is deliberately avoided because it would try to interpolate the
+          # per-rank .env values, which only exist on a real deployment.
           python - <<'PY'
-          import yaml
-          with open("compose/compose.yaml", encoding="utf-8") as handle:
-              document = yaml.safe_load(handle)
-          service = document["services"]["vllm"]
-          assert service["pull_policy"] == "never"
-          assert service["network_mode"] == "host"
-          assert "cgroup_parent" in service
-          assert len(service["volumes"]) >= 10
+          import re
+          text = open("compose/compose.yaml", encoding="utf-8").read()
+          required = [
+              "pull_policy: never",
+              "network_mode: host",
+              "ipc: host",
+              "cgroup_parent:",
+              "restart: \"no\"",
+              "/dev/infiniband:/dev/infiniband",
+              "/opt/switchless-nccl:/opt/switchless-nccl:ro",
+              "env_file:",
+              "- ../config/vllm.env",
+              "--tensor-parallel-size \"${TENSOR_PARALLEL_SIZE}\"",
+              "--max-model-len \"${MAX_MODEL_LEN}\"",
+              "--speculative-config \"${SPECULATIVE_CONFIG}\"",
+          ]
+          missing = [item for item in required if item not in text]
+          assert not missing, f"compose is missing: {missing}"
+          for name in ("NODE_RANK", "MASTER_ADDR", "VLLM_HOST_IP", "NCCL_IB_HCA", "CONTROL_IFACE"):
+              assert re.search(rf"\$\{{{name}[:\-]", text), f"{name} is not parameterized"
+          assert "# " in text, "compose lost its explanatory comments"
           print("compose OK")
           PY
 
