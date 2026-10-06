@@ -1,0 +1,19 @@
+# Everything here is text and belongs in the repository with LF endings: shell
+# scripts and Dockerfiles are executed on Linux nodes, and patches must apply
+# byte-exactly.
+* text=auto eol=lf
+*.patch text eol=lf -whitespace
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.env text eol=lf
+Dockerfile text eol=lf
+LICENSE text eol=lf
+NOTICE text eol=lf
+.gitignore text eol=lf
+
+# Images or archives, if ever added, must never be filtered.
+*.png binary
+*.gz binary
