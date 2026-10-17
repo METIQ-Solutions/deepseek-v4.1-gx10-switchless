@@ -77,7 +77,7 @@ def test_switched_gid_discovery_requires_one_matching_hca():
         (port / "gids").mkdir(parents=True)
         (port / "gid_attrs/types/3").write_text("RoCE v2\n", encoding="ascii")
         (port / "gid_attrs/ndevs/3").write_text("enp1s0f1np1\n", encoding="ascii")
-        (port / "gids/3").write_text("::ffff:c0a8:a115\n", encoding="ascii")
+        (port / "gids/3").write_text("::ffff:c000:0215\n", encoding="ascii")
         result = discover.discover(
             {"enp1s0f1np1": "192.0.2.21/24"},
             "=rocep1s0f1:1",
