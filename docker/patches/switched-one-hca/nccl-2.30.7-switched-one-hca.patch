@@ -1,0 +1,59 @@
+diff --git a/src/transport/generic.cc b/src/transport/generic.cc
+index 802a6f2..0000000 100644
+--- a/src/transport/generic.cc
++++ b/src/transport/generic.cc
+@@ -13,6 +13,7 @@ NCCL_PARAM(MultiSegmentRegister, "MULTI_SEGMENT_REGISTER", 1);
+ NCCL_PARAM(SwitchlessRingOnly, "SWITCHLESS_RING_ONLY", 0);
+ NCCL_PARAM(SkipTreeConnect, "SKIP_TREE_CONNECT", 0);
++NCCL_PARAM(SwitchedOneHca, "SWITCHED_ONE_HCA", 0);
+ 
+ bool ncclSwitchlessRingOnly() {
+   return ncclParamSwitchlessRingOnly() || ncclParamSkipTreeConnect();
+ }
++
++bool ncclSwitchedOneHca() {
++  return ncclParamSwitchedOneHca() && ncclSwitchlessRingOnly();
++}
+
+diff --git a/src/transport/net_ib/connect.cc b/src/transport/net_ib/connect.cc
+index 4d939d7..0000000 100644
+--- a/src/transport/net_ib/connect.cc
++++ b/src/transport/net_ib/connect.cc
+@@ -24,6 +24,7 @@ NCCL_PARAM(IbEceEnable, "IB_ECE_ENABLE", 1);
+ 
+ extern int64_t ncclParamIbOooRq();
+ extern int64_t ncclParamIbMergeNics();
++extern bool ncclSwitchedOneHca();
+ extern bool ncclSwitchlessRingOnly();
+@@ -638,7 +639,8 @@ ncclResult_t ncclIbListen(void* ctx, int dev, void* opaqueHandle, void** listenC
+           if (!validGid(&gid)) continue;
+           if (gidSlot > 0 && memcmp(&handle->listenGids[0], &gid, sizeof(gid)) == 0) {
+-            WARN("SWITCHLESS/HARDENED: duplicate listener GID on IbDev %d Port %d", ibDevN, ibDev->portNum);
++            WARN("SWITCHLESS/HARDENED: duplicate listener GID on IbDev %d Port %d", ibDevN,
++                 ibDev->portNum);
+             ret = ncclInvalidUsage;
+             goto fail;
+           }
+-          if (gidSlot == 2) {
+-            WARN("SWITCHLESS/HARDENED: more than two eligible listener GIDs");
++          int requiredGids = ncclSwitchedOneHca() ? 1 : 2;
++          if (gidSlot == requiredGids) {
++            WARN("SWITCHLESS/HARDENED: more eligible listener GIDs than the selected mode permits");
+             ret = ncclInvalidUsage;
+             goto fail;
+           }
+@@ -647,8 +649,9 @@ ncclResult_t ncclIbListen(void* ctx, int dev, void* opaqueHandle, void** listenC
+                ibDev->portNum, gidIndex, (uint64_t)gid.global.subnet_prefix, (uint64_t)gid.global.interface_id);
+           gidSlot++;
+         }
+       }
+-      if (gidSlot != 2) {
+-        WARN("SWITCHLESS/HARDENED: expected exactly two eligible listener GIDs, found %d", gidSlot);
++      int requiredGids = ncclSwitchedOneHca() ? 1 : 2;
++      if (gidSlot != requiredGids) {
++        WARN("SWITCHLESS/HARDENED: selected mode expected %d eligible listener GID(s), found %d",
++             requiredGids, gidSlot);
+         ret = ncclInvalidUsage;
+         goto fail;
+       }
+*** End Patch

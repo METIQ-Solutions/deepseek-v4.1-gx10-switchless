@@ -1,0 +1,41 @@
+ARG V41_SOURCE_IMAGE=ghcr.io/yunwei37/dgx-spark-4-ring-no-switch@sha256:2f8e2a70e73541eacf8c71a8990e907fa18fcd8b2a8d02cd0d54a7c81382a13c
+ARG NCCL_COMMIT=73cf112295c33aee2b895f329f592f2a9b4b0f97
+
+FROM ${V41_SOURCE_IMAGE} AS nccl-builder
+ARG NCCL_COMMIT
+USER root
+COPY docker/patches/switchless/ /tmp/nccl-patches/switchless/
+COPY docker/patches/switched-one-hca/ /tmp/nccl-patches/switched-one-hca/
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends build-essential ca-certificates git libibverbs-dev pkg-config; \
+    rm -rf /var/lib/apt/lists/*; \
+    git clone https://github.com/NVIDIA/nccl.git /tmp/nccl; \
+    git -C /tmp/nccl checkout "${NCCL_COMMIT}"; \
+    git -C /tmp/nccl apply /tmp/nccl-patches/switchless/nccl-2.30.7-skip-tree-pat.patch; \
+    git -C /tmp/nccl apply /tmp/nccl-patches/switchless/nccl-2.30.7-advertise-all-listener-gids.patch; \
+    git -C /tmp/nccl apply /tmp/nccl-patches/switchless/nccl-2.30.7-hardened-switchless.patch; \
+    git -C /tmp/nccl apply /tmp/nccl-patches/switched-one-hca/nccl-2.30.7-switched-one-hca.patch; \
+    make -C /tmp/nccl -j"$(nproc)" src.build CUDA_HOME=/usr/local/cuda; \
+    install -d /opt/switched-nccl; \
+    install -m 0755 /tmp/nccl/build/lib/libnccl.so.2.30.7 /opt/switched-nccl/libnccl.so.2.30.7; \
+    ln -s libnccl.so.2.30.7 /opt/switched-nccl/libnccl.so.2; \
+    ln -s libnccl.so.2 /opt/switched-nccl/libnccl.so; \
+    strings /opt/switched-nccl/libnccl.so.2.30.7 | grep -F 'SWITCHLESS/HARDENED'; \
+    rm -rf /tmp/nccl /tmp/nccl-patches
+
+FROM ${V41_SOURCE_IMAGE}
+COPY --from=nccl-builder /opt/switched-nccl /opt/switched-nccl
+RUN set -eux; \
+    pip_nccl=/usr/local/lib/python3.12/dist-packages/nvidia/nccl/lib; \
+    test -d "${pip_nccl}"; \
+    find "${pip_nccl}" -maxdepth 1 -type f -name 'libnccl.so*' -delete; \
+    find "${pip_nccl}" -maxdepth 1 -type l -name 'libnccl.so*' -delete; \
+    ln -s /opt/switched-nccl/libnccl.so.2.30.7 "${pip_nccl}/libnccl.so.2.30.7"; \
+    ln -s libnccl.so.2.30.7 "${pip_nccl}/libnccl.so.2"; \
+    ln -s libnccl.so.2 "${pip_nccl}/libnccl.so"; \
+    test "$(readlink -f "${pip_nccl}/libnccl.so.2")" = /opt/switched-nccl/libnccl.so.2.30.7
+
+LABEL org.opencontainers.image.title="DeepSeek V4.1 switched one-HCA Ring runtime" \
+      org.opencontainers.image.description="Source-built NCCL 2.30.7 Ring-only adaptation for one selected HCA on a switched RoCE fabric" \
+      org.opencontainers.image.source="https://github.com/METIQ-Solutions/deepseek-v4.1-gx10-switchless"
