@@ -58,7 +58,7 @@ def test_switched_topology_accepts_one_hca_and_logical_ring():
 def test_switched_topology_rejects_two_endpoints_per_rank():
     validator = load(ROOT / "scripts/validate-switched-topology.py")
     values = switched_values()
-    values["RANK_0_FABRIC"] += " enP2p1s0f1np1:192.168.161.121/24"
+    values["RANK_0_FABRIC"] += " enP2p1s0f1np1:192.0.2.121/24"
     try:
         validator.validate(values)
     except ValueError as error:
