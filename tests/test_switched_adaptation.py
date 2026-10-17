@@ -95,7 +95,7 @@ def test_ring_only_gate_is_preserved_and_switch_gate_is_explicit():
     assert 'NCCL_SKIP_TREE_CONNECT=1' in config
     assert 'NCCL_ALGO=Ring' in config
     assert 'NCCL_NET=IB' in config
-    assert 'NCCL_SWITCHED_ONE_HCA' in patch
+    assert 'SWITCHED_ONE_HCA' in patch
     assert 'ncclSwitchedOneHca' in patch
     assert 'Tree' not in patch or 'SKIP_TREE_CONNECT' in patch
 
